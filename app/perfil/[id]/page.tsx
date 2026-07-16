@@ -1,7 +1,7 @@
 'use client';
 
 import { createClient } from '@supabase/supabase-js';
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useState, use } from 'react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -9,8 +9,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function PerfilPage({ params }: { params: Promise<{ id: string }> }) {
-  // Resolvemos a promise dos params corretamente para o Next.js 15+
   const { id } = use(params);
+  const router = useRouter();
   
   const [perfil, setPerfil] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -29,6 +29,13 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         setLoading(false);
         return;
       }
+
+      // LÓGICA INTELIGENTE: Se não tiver nome, redireciona para ativação
+      if (!data.nome) {
+        router.push(`/ativar?id=${id}`);
+        return;
+      }
+
       setPerfil(data);
       setLoading(false);
 
@@ -36,7 +43,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       await supabase.from('nfc_scans').insert([{ profile_id: id }]);
     }
     loadData();
-  }, [id]);
+  }, [id, router]);
 
   if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-yellow-500">Carregando...</div>;
   if (!perfil) return notFound();
@@ -55,7 +62,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold mb-1 tracking-tight text-white">{perfil.nome || 'Sem Nome'}</h1>
+        <h1 className="text-2xl font-bold mb-1 tracking-tight text-white">{perfil.nome}</h1>
         <p className="text-yellow-600/80 text-sm mb-8 font-medium uppercase tracking-widest">{perfil.descricao || 'Slim Checkpoint'}</p>
 
         <div className="space-y-4">
