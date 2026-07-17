@@ -24,13 +24,12 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [isRecording, setIsRecording] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
 
-  // Estados do formulário de edição (mapeado correto para o banco)
+  // Estados do formulário de edição (mapeados exatamente com o seu Supabase)
   const [editNome, setEditNome] = useState('');
-  const [editBio, setEditBio] = useState(''); // Ajustado para 'bio' do seu Supabase
+  const [editBio, setEditBio] = useState('');
   const [editWhatsapp, setEditWhatsapp] = useState('');
   const [editInstagram, setEditInstagram] = useState('');
-  const [editSite, setEditSite] = useState('');
-  const [editMusicaFundo, setEditMusicaFundo] = useState(''); // Salva link da música de fundo
+  const [editMusicaFundo, setEditMusicaFundo] = useState('');
   const [editLinksExtras, setEditLinksExtras] = useState<any[]>([]);
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
@@ -57,10 +56,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
       setPerfil(data);
       setEditNome(data.nome);
-      setEditBio(data.bio || ''); // Puxa da coluna correta 'bio'
+      setEditBio(data.bio || '');
       setEditWhatsapp(data.whatsapp || '');
       setEditInstagram(data.link_instagram || '');
-      setEditSite(data.site_proprio || '');
       setEditMusicaFundo(data.musica_fundo || '');
       setEditLinksExtras(data.links_extras || []);
       setLoading(false);
@@ -77,7 +75,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     loadData();
   }, [id, router]);
 
-  // Efeito para tocar/pausar a música de fundo
+  // Tocar/Pausar música ambiente
   useEffect(() => {
     if (perfil?.musica_fundo) {
       if (!audioRef.current) {
@@ -88,7 +86,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       }
 
       if (isPlayingMusic) {
-        audioRef.current.play().catch((e) => console.log("Autoplay bloqueado pelo navegador. Toque no vinil para iniciar.", e));
+        audioRef.current.play().catch((e) => console.log("Autoplay bloqueado pelo navegador.", e));
       } else {
         audioRef.current.pause();
       }
@@ -100,17 +98,16 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     };
   }, [isPlayingMusic, perfil?.musica_fundo]);
 
-  // Função para salvar as alterações corrigida para a coluna 'bio'
+  // Salvar alterações usando exatamente as colunas existentes no seu banco
   async function handleSaveChanges() {
     setLoading(true);
     const { error } = await supabase
       .from('nfc_profiles')
       .update({
         nome: editNome,
-        bio: editBio, // Salvando na coluna certa!
+        bio: editBio,
         whatsapp: editWhatsapp,
         link_instagram: editInstagram,
-        site_proprio: editSite,
         musica_fundo: editMusicaFundo,
         links_extras: editLinksExtras
       })
@@ -125,7 +122,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         bio: editBio,
         whatsapp: editWhatsapp,
         link_instagram: editInstagram,
-        site_proprio: editSite,
         musica_fundo: editMusicaFundo,
         links_extras: editLinksExtras
       });
@@ -134,7 +130,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     setLoading(false);
   }
 
-  // Função para fazer upload da foto de perfil
+  // Upload da foto apontando para a coluna real 'foto.url'
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
@@ -158,18 +154,20 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       .from('avatars')
       .getPublicUrl(filePath);
 
+    // Salvando na coluna exata que está no seu banco: foto.url
     const { error: updateError } = await supabase
       .from('nfc_profiles')
-      .update({ avatar_url: publicUrl })
+      .update({ "foto.url": publicUrl })
       .eq('id', id);
 
-    if (!updateError) {
-      setPerfil({ ...perfil, avatar_url: publicUrl });
+    if (updateError) {
+      alert('Erro ao salvar a referência da foto: ' + updateError.message);
+    } else {
+      setPerfil({ ...perfil, "foto.url": publicUrl });
     }
     setLoading(false);
   }
 
-  // Adicionar novo link extra personalizado
   function handleAddExtraLink() {
     if (!newLinkTitle || !newLinkUrl) return;
     const updated = [...editLinksExtras, { title: newLinkTitle, url: newLinkUrl }];
@@ -178,13 +176,12 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     setNewLinkUrl('');
   }
 
-  // Remover link extra personalizado
   function handleRemoveExtraLink(index: number) {
     const updated = editLinksExtras.filter((_, i) => i !== index);
     setEditLinksExtras(updated);
   }
 
-  // Lógica de Voz da IA Inteligente e Integrada com o Navegador
+  // Assistente de voz inteligente e integrado
   function handleVoiceChat() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -198,28 +195,26 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
     recognition.onstart = () => {
       setIsRecording(true);
-      setAiResponse('Estou te ouvindo...');
+      setAiResponse('Estou ouvindo...');
     };
 
     recognition.onresult = async (event: any) => {
       const speechToText = event.results[0][0].transcript;
-      setAiResponse(`Processando pergunta...`);
+      setAiResponse(`Processando...`);
 
-      // Respostas inteligentes locais baseadas no perfil do usuário
-      let respostaIA = `Olá! Sou o assistente virtual do ${perfil.nome}. Você disse "${speechToText}". Como posso te ajudar hoje?`;
+      let respostaIA = `Olá! Sou o assistente do ${perfil.nome}. Você disse "${speechToText}". Como posso te ajudar?`;
       
       const textoNormalizado = speechToText.toLowerCase();
       if (textoNormalizado.includes('whatsapp') || textoNormalizado.includes('contato') || textoNormalizado.includes('falar com')) {
-        respostaIA = `Claro! Para falar diretamente com o ${perfil.nome}, basta clicar no primeiro botão da tela chamado WhatsApp.`;
+        respostaIA = `Para falar com ${perfil.nome}, clique no botão do WhatsApp na tela!`;
       } else if (textoNormalizado.includes('instagram') || textoNormalizado.includes('rede social')) {
-        respostaIA = `Você pode acompanhar o dia a dia do ${perfil.nome} clicando no botão do Instagram na tela!`;
-      } else if (textoNormalizado.includes('quem é') || textoNormalizado.includes('quem e você') || textoNormalizado.includes('sobre')) {
-        respostaIA = `Aqui está o perfil do ${perfil.nome}. Sua biografia diz: ${perfil.bio || 'Sem biografia definida ainda.'}`;
+        respostaIA = `Siga o perfil do Instagram clicando no botão correspondente na tela!`;
+      } else if (textoNormalizado.includes('quem é') || textoNormalizado.includes('sobre')) {
+        respostaIA = `Este é o perfil de ${perfil.nome}. A biografia diz: ${perfil.bio || 'Sem descrição cadastrada.'}`;
       }
 
       setAiResponse(respostaIA);
       
-      // Fala a resposta de volta usando o sintetizador do navegador
       const utterance = new SpeechSynthesisUtterance(respostaIA);
       utterance.lang = 'pt-BR';
       window.speechSynthesis.speak(utterance);
@@ -228,7 +223,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
     recognition.onerror = () => {
       setIsRecording(false);
-      setAiResponse('Ops! Não consegui te ouvir direito.');
+      setAiResponse('Não consegui te ouvir direito.');
     };
 
     if (isRecording) {
@@ -242,15 +237,17 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-yellow-500">Carregando...</div>;
   if (!perfil) return notFound();
 
+  // Obtendo a URL da foto dinamicamente da coluna 'foto.url'
+  const fotoUrl = perfil["foto.url"] || perfil.foto_url;
+
   return (
     <main className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-6 selection:bg-yellow-500/30">
       
-      {/* 🎵 Controle de Música de Fundo (Vinil flutuante) */}
+      {/* 📻 Música de Fundo */}
       {perfil.musica_fundo && (
         <button 
           onClick={() => setIsPlayingMusic(!isPlayingMusic)} 
           className="absolute top-6 left-6 p-3 bg-[#0a0a0a] border border-yellow-500/30 rounded-full shadow-lg transition-all z-20 flex items-center justify-center"
-          title="Tocar/Pausar Música Ambiente"
         >
           <span className={`text-2xl inline-block ${isPlayingMusic ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }}>
             📻
@@ -258,7 +255,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         </button>
       )}
 
-      {/* Botão de Ajustes (Editar Perfil) */}
+      {/* Botão Editar Perfil */}
       <button 
         onClick={() => setIsEditing(!isEditing)} 
         className="absolute top-6 right-6 p-3 bg-[#0a0a0a] border border-yellow-600/20 hover:border-yellow-500 text-yellow-500 rounded-full shadow-lg transition-all z-20"
@@ -268,15 +265,14 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
       <div className="w-full max-w-sm bg-[#0a0a0a] p-8 rounded-3xl border border-yellow-600/20 shadow-[0_0_50px_-12px_rgba(202,138,4,0.15)] backdrop-blur-xl text-center relative z-10">
         
-        {/* Modo de Visualização do Perfil */}
         {!isEditing ? (
           <>
-            {/* Foto de Perfil */}
+            {/* Avatar */}
             <div className="relative w-32 h-32 mx-auto mb-4 rounded-full p-[2px] bg-gradient-to-tr from-yellow-600 via-yellow-400 to-yellow-600 shadow-lg shadow-yellow-500/20 group cursor-pointer">
               <label htmlFor="photo-upload" className="cursor-pointer w-full h-full block">
                 <div className="w-full h-full bg-[#050505] rounded-full overflow-hidden flex items-center justify-center relative">
-                  {perfil.avatar_url ? (
-                    <img src={perfil.avatar_url} alt={perfil.nome} className="w-full h-full object-cover group-hover:opacity-60 transition-opacity" />
+                  {fotoUrl ? (
+                    <img src={fotoUrl} alt={perfil.nome} className="w-full h-full object-cover group-hover:opacity-60 transition-opacity" />
                   ) : (
                     <span className="text-4xl text-yellow-500 group-hover:opacity-60">👤</span>
                   )}
@@ -288,20 +284,18 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
               <input type="file" id="photo-upload" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
             </div>
 
-            {/* Nome do Perfil */}
             <h1 className="text-2xl font-bold mb-1 tracking-tight text-white">{perfil.nome}</h1>
             
-            {/* Descrição do Perfil - PUXANDO DO CAMPO CORRETO 'BIO' */}
+            {/* Descrição Exibida na Tela */}
             <p className="text-yellow-600/80 text-sm mb-8 font-medium uppercase tracking-widest min-h-[20px]">
               {perfil.bio || 'Slim Checkpoint'}
             </p>
 
-            {/* Renderização dos botões principais */}
+            {/* Links Principais */}
             <div className="space-y-4">
               {[
                 { label: 'WhatsApp', href: perfil.whatsapp ? `https://wa.me/${perfil.whatsapp.replace(/\D/g, '')}` : null },
                 { label: 'Instagram', href: perfil.link_instagram ? `https://instagram.com/${perfil.link_instagram.replace('@', '')}` : null },
-                { label: 'Visite nosso Site', href: perfil.site_proprio ? (perfil.site_proprio.startsWith('http') ? perfil.site_proprio : `https://${perfil.site_proprio}`) : null },
               ].map((btn, i) => btn.href && (
                 <a key={i} href={btn.href} target="_blank" rel="noopener noreferrer" 
                    className="block w-full py-3 bg-[#0f0f0f] border border-yellow-600/30 hover:border-yellow-500 text-yellow-500 font-bold rounded-xl shadow-lg hover:shadow-yellow-500/10 hover:scale-[1.02] transition-all duration-300">
@@ -309,7 +303,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 </a>
               ))}
 
-              {/* Links Extras Dinâmicos */}
+              {/* Links Extras */}
               {perfil.links_extras && perfil.links_extras.map((link: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <a href={link.url} target="_blank" rel="noopener noreferrer" 
@@ -321,7 +315,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
             </div>
           </>
         ) : (
-          /* Painel de Edição do Perfil */
+          /* Painel de Edição */
           <div className="text-left space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <h2 className="text-xl font-bold text-yellow-500 mb-4 text-center">Configurações</h2>
             
@@ -332,7 +326,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
             <div>
               <label className="text-xs text-gray-400">Descrição / Biografia</label>
-              <input type="text" value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white" placeholder="Sua descrição no perfil" />
+              <input type="text" value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white" placeholder="Sua descrição" />
             </div>
 
             <div>
@@ -346,16 +340,10 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
             </div>
 
             <div>
-              <label className="text-xs text-gray-400">Site Oficial</label>
-              <input type="text" value={editSite} onChange={(e) => setEditSite(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white" />
-            </div>
-
-            {/* Configuração da Música Ambiente */}
-            <div>
-              <label className="text-xs text-gray-400 block mb-1">Música de Fundo (Link direto .mp3)</label>
+              <label className="text-xs text-gray-400 block mb-1">Música Ambiente (Link direto .mp3)</label>
               <input 
                 type="text" 
-                placeholder="https://exemplo.com/musica.mp3" 
+                placeholder="https://suamusica.com/ambiente.mp3" 
                 value={editMusicaFundo} 
                 onChange={(e) => setEditMusicaFundo(e.target.value)} 
                 className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white text-xs" 
@@ -366,7 +354,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
             <h3 className="text-sm font-bold text-yellow-500">Links Extras</h3>
             <div className="space-y-2">
-              <input type="text" placeholder="Título (Ex: Meu Portfólio)" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-xs" />
+              <input type="text" placeholder="Título (Ex: Portfólio)" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-xs" />
               <input type="text" placeholder="URL do Link" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-xs" />
               <button type="button" onClick={handleAddExtraLink} className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-1.5 rounded-lg text-xs transition-all">
                 + Adicionar Novo Link
@@ -393,10 +381,10 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         </footer>
       </div>
 
-      {/* 🎤 Widget de Conversa por Voz com IA */}
+      {/* Widget IA de Voz */}
       <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-2 z-30">
         {aiResponse && (
-          <div className="max-w-[220px] bg-[#0a0a0a] border border-yellow-500/30 text-yellow-500 p-3 rounded-2xl text-xs shadow-lg animate-fade-in">
+          <div className="max-w-[220px] bg-[#0a0a0a] border border-yellow-500/30 text-yellow-500 p-3 rounded-2xl text-xs shadow-lg">
             {aiResponse}
           </div>
         )}
