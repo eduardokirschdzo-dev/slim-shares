@@ -39,8 +39,16 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       setPerfil(data);
       setLoading(false);
 
-      // Registra o acesso
-      await supabase.from('nfc_scans').insert([{ profile_id: id }]);
+      // --- NOVA LÓGICA DO CHECKPOINT ---
+      // Pega a URL e procura por "?cp=" (Ex: ?cp=Mesa de Som)
+      const params = new URLSearchParams(window.location.search);
+      const checkpointStr = params.get('cp') || 'Geral'; 
+
+      // Registra o acesso com o local exato
+      await supabase.from('nfc_scans').insert([{ 
+        profile_id: id,
+        checkpoint: checkpointStr
+      }]);
     }
     loadData();
   }, [id, router]);
