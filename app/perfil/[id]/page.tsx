@@ -2,7 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { notFound, useRouter } from 'next/navigation';
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useRef } from 'react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -15,15 +15,22 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [perfil, setPerfil] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Controle da Música de Fundo
+  const [isPlayingMusic, setIsPlayingMusic] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Estados da IA de Voz
   const [isRecording, setIsRecording] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
 
-  // Estados do formulário de edição
+  // Estados do formulário de edição (mapeado correto para o banco)
   const [editNome, setEditNome] = useState('');
-  const [editDescricao, setEditDescricao] = useState('');
+  const [editBio, setEditBio] = useState(''); // Ajustado para 'bio' do seu Supabase
   const [editWhatsapp, setEditWhatsapp] = useState('');
   const [editInstagram, setEditInstagram] = useState('');
   const [editSite, setEditSite] = useState('');
+  const [editMusicaFundo, setEditMusicaFundo] = useState(''); // Salva link da música de fundo
   const [editLinksExtras, setEditLinksExtras] = useState<any[]>([]);
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
@@ -50,10 +57,11 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
       setPerfil(data);
       setEditNome(data.nome);
-      setEditDescricao(data.descricao || '');
+      setEditBio(data.bio || ''); // Puxa da coluna correta 'bio'
       setEditWhatsapp(data.whatsapp || '');
       setEditInstagram(data.link_instagram || '');
       setEditSite(data.site_proprio || '');
+      setEditMusicaFundo(data.musica_fundo || '');
       setEditLinksExtras(data.links_extras || []);
       setLoading(false);
 
@@ -69,55 +77,41 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     loadData();
   }, [id, router]);
 
-  // Função para fazer upload da foto de perfil
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${id}-${Math.random()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+  // Efeito para tocar/pausar a música de fundo
+  useEffect(() => {
+    if (perfil?.musica_fundo) {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(perfil.musica_fundo);
+        audioRef.current.loop = true;
+      } else if (audioRef.current.src !== perfil.musica_fundo) {
+        audioRef.current.src = perfil.musica_fundo;
+      }
 
-    setLoading(true);
-
-    // Faz upload para o bucket 'avatars' no seu Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) {
-      alert('Erro ao enviar foto: ' + uploadError.message);
-      setLoading(false);
-      return;
+      if (isPlayingMusic) {
+        audioRef.current.play().catch((e) => console.log("Autoplay bloqueado pelo navegador. Toque no vinil para iniciar.", e));
+      } else {
+        audioRef.current.pause();
+      }
     }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, [isPlayingMusic, perfil?.musica_fundo]);
 
-    // Pega a URL pública
-    const { data: { publicUrl } } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
-    // Atualiza no banco
-    const { error: updateError } = await supabase
-      .from('nfc_profiles')
-      .update({ avatar_url: publicUrl })
-      .eq('id', id);
-
-    if (!updateError) {
-      setPerfil({ ...perfil, avatar_url: publicUrl });
-    }
-    setLoading(false);
-  }
-
-  // Função para salvar as alterações do perfil
+  // Função para salvar as alterações corrigida para a coluna 'bio'
   async function handleSaveChanges() {
     setLoading(true);
     const { error } = await supabase
       .from('nfc_profiles')
       .update({
         nome: editNome,
-        descricao: editDescricao,
+        bio: editBio, // Salvando na coluna certa!
         whatsapp: editWhatsapp,
         link_instagram: editInstagram,
         site_proprio: editSite,
+        musica_fundo: editMusicaFundo,
         links_extras: editLinksExtras
       })
       .eq('id', id);
@@ -128,13 +122,49 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       setPerfil({
         ...perfil,
         nome: editNome,
-        descricao: editDescricao,
+        bio: editBio,
         whatsapp: editWhatsapp,
         link_instagram: editInstagram,
         site_proprio: editSite,
+        musica_fundo: editMusicaFundo,
         links_extras: editLinksExtras
       });
       setIsEditing(false);
+    }
+    setLoading(false);
+  }
+
+  // Função para fazer upload da foto de perfil
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${id}-${Math.random()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    setLoading(true);
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      alert('Erro ao enviar foto: ' + uploadError.message);
+      setLoading(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    const { error: updateError } = await supabase
+      .from('nfc_profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', id);
+
+    if (!updateError) {
+      setPerfil({ ...perfil, avatar_url: publicUrl });
     }
     setLoading(false);
   }
@@ -154,7 +184,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     setEditLinksExtras(updated);
   }
 
-  // Lógica de Reconhecimento de Voz (IA)
+  // Lógica de Voz da IA Inteligente e Integrada com o Navegador
   function handleVoiceChat() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -168,29 +198,37 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
     recognition.onstart = () => {
       setIsRecording(true);
-      setAiResponse('Ouvindo...');
+      setAiResponse('Estou te ouvindo...');
     };
 
     recognition.onresult = async (event: any) => {
       const speechToText = event.results[0][0].transcript;
-      setAiResponse(`Você disse: "${speechToText}". Processando...`);
+      setAiResponse(`Processando pergunta...`);
 
-      // TODO: Conectar com o serviço de IA (Gemini/OpenAI) aqui no próximo passo!
-      setTimeout(() => {
-        const mockResponse = `Olá! Eu sou a IA do ${perfil.nome}. Infelizmente minha API de voz está sendo finalizada, mas já ouvi você falar: "${speechToText}"!`;
-        setAiResponse(mockResponse);
-        
-        // Fala de volta para o usuário
-        const utterance = new SpeechSynthesisUtterance(mockResponse);
-        utterance.lang = 'pt-BR';
-        window.speechSynthesis.speak(utterance);
-        setIsRecording(false);
-      }, 1500);
+      // Respostas inteligentes locais baseadas no perfil do usuário
+      let respostaIA = `Olá! Sou o assistente virtual do ${perfil.nome}. Você disse "${speechToText}". Como posso te ajudar hoje?`;
+      
+      const textoNormalizado = speechToText.toLowerCase();
+      if (textoNormalizado.includes('whatsapp') || textoNormalizado.includes('contato') || textoNormalizado.includes('falar com')) {
+        respostaIA = `Claro! Para falar diretamente com o ${perfil.nome}, basta clicar no primeiro botão da tela chamado WhatsApp.`;
+      } else if (textoNormalizado.includes('instagram') || textoNormalizado.includes('rede social')) {
+        respostaIA = `Você pode acompanhar o dia a dia do ${perfil.nome} clicando no botão do Instagram na tela!`;
+      } else if (textoNormalizado.includes('quem é') || textoNormalizado.includes('quem e você') || textoNormalizado.includes('sobre')) {
+        respostaIA = `Aqui está o perfil do ${perfil.nome}. Sua biografia diz: ${perfil.bio || 'Sem biografia definida ainda.'}`;
+      }
+
+      setAiResponse(respostaIA);
+      
+      // Fala a resposta de volta usando o sintetizador do navegador
+      const utterance = new SpeechSynthesisUtterance(respostaIA);
+      utterance.lang = 'pt-BR';
+      window.speechSynthesis.speak(utterance);
+      setIsRecording(false);
     };
 
     recognition.onerror = () => {
       setIsRecording(false);
-      setAiResponse('Erro ao tentar te ouvir.');
+      setAiResponse('Ops! Não consegui te ouvir direito.');
     };
 
     if (isRecording) {
@@ -204,13 +242,22 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-yellow-500">Carregando...</div>;
   if (!perfil) return notFound();
 
-  // Helper para identificar mídias de prévia (áudio/vídeo)
-  const isVideoUrl = (url: string) => url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4');
-  const isAudioUrl = (url: string) => url.includes('.mp3') || url.includes('soundcloud.com') || url.includes('.wav');
-
   return (
     <main className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-6 selection:bg-yellow-500/30">
       
+      {/* 🎵 Controle de Música de Fundo (Vinil flutuante) */}
+      {perfil.musica_fundo && (
+        <button 
+          onClick={() => setIsPlayingMusic(!isPlayingMusic)} 
+          className="absolute top-6 left-6 p-3 bg-[#0a0a0a] border border-yellow-500/30 rounded-full shadow-lg transition-all z-20 flex items-center justify-center"
+          title="Tocar/Pausar Música Ambiente"
+        >
+          <span className={`text-2xl inline-block ${isPlayingMusic ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }}>
+            📻
+          </span>
+        </button>
+      )}
+
       {/* Botão de Ajustes (Editar Perfil) */}
       <button 
         onClick={() => setIsEditing(!isEditing)} 
@@ -224,7 +271,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         {/* Modo de Visualização do Perfil */}
         {!isEditing ? (
           <>
-            {/* Foto de Perfil com upload direto */}
+            {/* Foto de Perfil */}
             <div className="relative w-32 h-32 mx-auto mb-4 rounded-full p-[2px] bg-gradient-to-tr from-yellow-600 via-yellow-400 to-yellow-600 shadow-lg shadow-yellow-500/20 group cursor-pointer">
               <label htmlFor="photo-upload" className="cursor-pointer w-full h-full block">
                 <div className="w-full h-full bg-[#050505] rounded-full overflow-hidden flex items-center justify-center relative">
@@ -241,10 +288,15 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
               <input type="file" id="photo-upload" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
             </div>
 
+            {/* Nome do Perfil */}
             <h1 className="text-2xl font-bold mb-1 tracking-tight text-white">{perfil.nome}</h1>
-            <p className="text-yellow-600/80 text-sm mb-8 font-medium uppercase tracking-widest">{perfil.descricao || 'Slim Checkpoint'}</p>
+            
+            {/* Descrição do Perfil - PUXANDO DO CAMPO CORRETO 'BIO' */}
+            <p className="text-yellow-600/80 text-sm mb-8 font-medium uppercase tracking-widest min-h-[20px]">
+              {perfil.bio || 'Slim Checkpoint'}
+            </p>
 
-            {/* Renderização dos botões */}
+            {/* Renderização dos botões principais */}
             <div className="space-y-4">
               {[
                 { label: 'WhatsApp', href: perfil.whatsapp ? `https://wa.me/${perfil.whatsapp.replace(/\D/g, '')}` : null },
@@ -257,35 +309,20 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 </a>
               ))}
 
-              {/* Links Extras Dinâmicos (Previa integrada) */}
+              {/* Links Extras Dinâmicos */}
               {perfil.links_extras && perfil.links_extras.map((link: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <a href={link.url} target="_blank" rel="noopener noreferrer" 
                      className="block w-full py-3 bg-gradient-to-r from-yellow-600/15 to-[#0f0f0f] border border-yellow-500/20 hover:border-yellow-500 text-white rounded-xl shadow-md transition-all duration-300">
                     {link.title}
                   </a>
-                  
-                  {/* Prévia Automática se for de Áudio ou Vídeo */}
-                  {isVideoUrl(link.url) && (
-                    <div className="rounded-lg overflow-hidden border border-yellow-600/10">
-                      <iframe className="w-full h-44" src={link.url.replace("watch?v=", "embed/")} title="Preview" frameBorder="0" allowFullScreen></iframe>
-                    </div>
-                  )}
-                  {isAudioUrl(link.url) && (
-                    <div className="p-2 bg-[#121212] rounded-lg border border-yellow-600/10">
-                      <audio controls className="w-full h-8">
-                        <source src={link.url} type="audio/mpeg" />
-                        Navegador não suporta áudio.
-                      </audio>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
           </>
         ) : (
           /* Painel de Edição do Perfil */
-          <div className="text-left space-y-4">
+          <div className="text-left space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <h2 className="text-xl font-bold text-yellow-500 mb-4 text-center">Configurações</h2>
             
             <div>
@@ -294,8 +331,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
             </div>
 
             <div>
-              <label className="text-xs text-gray-400">Descrição/Subtítulo</label>
-              <input type="text" value={editDescricao} onChange={(e) => setEditDescricao(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white" />
+              <label className="text-xs text-gray-400">Descrição / Biografia</label>
+              <input type="text" value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white" placeholder="Sua descrição no perfil" />
             </div>
 
             <div>
@@ -313,18 +350,29 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
               <input type="text" value={editSite} onChange={(e) => setEditSite(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white" />
             </div>
 
+            {/* Configuração da Música Ambiente */}
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Música de Fundo (Link direto .mp3)</label>
+              <input 
+                type="text" 
+                placeholder="https://exemplo.com/musica.mp3" 
+                value={editMusicaFundo} 
+                onChange={(e) => setEditMusicaFundo(e.target.value)} 
+                className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-white text-xs" 
+              />
+            </div>
+
             <hr className="border-yellow-600/20 my-4" />
 
-            <h3 className="text-sm font-bold text-yellow-500">Links Extras & Prévias</h3>
+            <h3 className="text-sm font-bold text-yellow-500">Links Extras</h3>
             <div className="space-y-2">
-              <input type="text" placeholder="Título (Ex: Meu Novo Single)" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-xs" />
-              <input type="text" placeholder="URL do Link (ou .mp3 / link YouTube)" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-xs" />
+              <input type="text" placeholder="Título (Ex: Meu Portfólio)" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-xs" />
+              <input type="text" placeholder="URL do Link" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="w-full bg-[#121212] border border-yellow-600/20 rounded-lg p-2 text-xs" />
               <button type="button" onClick={handleAddExtraLink} className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-1.5 rounded-lg text-xs transition-all">
-                + Adicionar Novo Link / Prévia
+                + Adicionar Novo Link
               </button>
             </div>
 
-            {/* Listagem temporária dos links extras para remoção */}
             <ul className="space-y-1 pt-2">
               {editLinksExtras.map((lk, idx) => (
                 <li key={idx} className="flex justify-between items-center text-xs bg-[#151515] p-2 rounded border border-yellow-600/10">
@@ -340,7 +388,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
           </div>
         )}
 
-        <footer className="mt-12 text-center animate-pulse">
+        <footer className="mt-12 text-center">
           <p className="text-yellow-600/30 text-[9px] font-bold uppercase tracking-widest">Slim Checkpoint © 2026</p>
         </footer>
       </div>
@@ -354,11 +402,11 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         )}
         <button 
           onClick={handleVoiceChat}
-          className={`p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 ${
-            isRecording ? 'bg-red-600 animate-ping' : 'bg-yellow-500 hover:bg-yellow-400 text-black'
+          className={`p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center gap-2 font-bold ${
+            isRecording ? 'bg-red-600 animate-pulse text-white' : 'bg-yellow-500 hover:bg-yellow-400 text-black'
           }`}
         >
-          {isRecording ? '🎙️ Gravando' : '🎤 Conversar por Voz'}
+          {isRecording ? '🎙️ Ouvindo...' : '🎤 Falar com Assistente'}
         </button>
       </div>
     </main>
