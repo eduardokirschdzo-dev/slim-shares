@@ -2,11 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { ativarPerfil } from '../../services/profileService';
 
 function FormularioAtivacao() {
   const router = useRouter();
@@ -25,27 +21,23 @@ function FormularioAtivacao() {
     
     setLoading(true);
 
-    // Atualiza a linha vazia no banco com os dados do cliente
-    const { error } = await supabase
-      .from('nfc_profiles')
-      .update({
+    try {
+      // Usando a camada de serviços criada na Etapa 2
+      await ativarPerfil(id, {
         nome: nome,
         whatsapp: whatsapp,
-        link_instagram: instagram,
-        // Podemos adicionar o upload de foto depois, por enquanto vai texto
-      })
-      .eq('id', id);
+        link_instagram: instagram
+      });
 
-    setLoading(false);
-
-    if (error) {
-      alert('Erro ao ativar: ' + error.message);
-    } else {
       setSucesso(true);
       // Aguarda 2 segundos e joga o cliente pro perfil novinho em folha
       setTimeout(() => {
         router.push(`/perfil/${id}`);
       }, 2000);
+    } catch (error: any) {
+      alert('Erro ao ativar: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -106,7 +98,6 @@ export default function AtivacaoPage() {
           Ativação Slim
         </h1>
         
-        {/* O Suspense é obrigatório no Next.js 15 quando usamos searchParams */}
         <Suspense fallback={<div className="text-yellow-500">Carregando formulário...</div>}>
           <FormularioAtivacao />
         </Suspense>

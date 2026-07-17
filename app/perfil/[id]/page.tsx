@@ -1,12 +1,11 @@
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
 import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useState, use, useRef } from 'react';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../../../lib/supabase';
+import { buscarPerfil } from '../../../services/profileService';
+import { registrarScan } from '../../../services/checkpointService';
+import VoiceAssistant from '../../components/VoiceAssistant'; // Importando o nosso novo componente isolado
 
 export default function PerfilPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -20,11 +19,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Estados da IA de Voz
-  const [isRecording, setIsRecording] = useState(false);
-  const [aiResponse, setAiResponse] = useState('');
-
-  // Estados do formulário de edição (mapeados exatamente com o seu Supabase)
+  // Estados do formulário de edição
   const [editNome, setEditNome] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editWhatsapp, setEditWhatsapp] = useState('');
@@ -38,39 +33,31 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     async function loadData() {
       if (!id) return;
       
-      const { data, error } = await supabase
-        .from('nfc_profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error || !data) {
+      try {
+        const data = await buscarPerfil(id);
+
+        if (!data.nome) {
+          router.push(`/ativar?id=${id}`);
+          return;
+        }
+
+        setPerfil(data);
+        setEditNome(data.nome);
+        setEditBio(data.bio || '');
+        setEditWhatsapp(data.whatsapp || '');
+        setEditInstagram(data.link_instagram || '');
+        setEditMusicaFundo(data.musica_fundo || '');
+        setEditLinksExtras(data.links_extras || []);
+        setLoading(false);
+
+        const paramsUrl = new URLSearchParams(window.location.search);
+        const checkpointStr = paramsUrl.get('cp') || 'Geral'; 
+        await registrarScan(id, checkpointStr);
+
+      } catch (error) {
         setLoading(false);
         return;
       }
-
-      if (!data.nome) {
-        router.push(`/ativar?id=${id}`);
-        return;
-      }
-
-      setPerfil(data);
-      setEditNome(data.nome);
-      setEditBio(data.bio || '');
-      setEditWhatsapp(data.whatsapp || '');
-      setEditInstagram(data.link_instagram || '');
-      setEditMusicaFundo(data.musica_fundo || '');
-      setEditLinksExtras(data.links_extras || []);
-      setLoading(false);
-
-      // Registra checkpoint
-      const paramsUrl = new URLSearchParams(window.location.search);
-      const checkpointStr = paramsUrl.get('cp') || 'Geral'; 
-
-      await supabase.from('nfc_scans').insert([{ 
-        profile_id: id,
-        checkpoint: checkpointStr
-      }]);
     }
     loadData();
   }, [id, router]);
@@ -98,7 +85,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     };
   }, [isPlayingMusic, perfil?.musica_fundo]);
 
-  // Salvar alterações usando exatamente as colunas existentes no seu banco
+  // Salvar alterações
   async function handleSaveChanges() {
     setLoading(true);
     const { error } = await supabase
@@ -130,7 +117,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     setLoading(false);
   }
 
-  // Upload da foto apontando para a coluna real 'foto.url'
+  // Upload da foto
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
@@ -154,7 +141,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       .from('avatars')
       .getPublicUrl(filePath);
 
-    // Salvando na coluna exata que está no seu banco: foto.url
     const { error: updateError } = await supabase
       .from('nfc_profiles')
       .update({ "foto.url": publicUrl })
@@ -181,69 +167,14 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     setEditLinksExtras(updated);
   }
 
-  // Assistente de voz inteligente e integrado
-  function handleVoiceChat() {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Seu navegador não suporta reconhecimento de voz.');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'pt-BR';
-    recognition.continuous = false;
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-      setAiResponse('Estou ouvindo...');
-    };
-
-    recognition.onresult = async (event: any) => {
-      const speechToText = event.results[0][0].transcript;
-      setAiResponse(`Processando...`);
-
-      let respostaIA = `Olá! Sou o assistente do ${perfil.nome}. Você disse "${speechToText}". Como posso te ajudar?`;
-      
-      const textoNormalizado = speechToText.toLowerCase();
-      if (textoNormalizado.includes('whatsapp') || textoNormalizado.includes('contato') || textoNormalizado.includes('falar com')) {
-        respostaIA = `Para falar com ${perfil.nome}, clique no botão do WhatsApp na tela!`;
-      } else if (textoNormalizado.includes('instagram') || textoNormalizado.includes('rede social')) {
-        respostaIA = `Siga o perfil do Instagram clicando no botão correspondente na tela!`;
-      } else if (textoNormalizado.includes('quem é') || textoNormalizado.includes('sobre')) {
-        respostaIA = `Este é o perfil de ${perfil.nome}. A biografia diz: ${perfil.bio || 'Sem descrição cadastrada.'}`;
-      }
-
-      setAiResponse(respostaIA);
-      
-      const utterance = new SpeechSynthesisUtterance(respostaIA);
-      utterance.lang = 'pt-BR';
-      window.speechSynthesis.speak(utterance);
-      setIsRecording(false);
-    };
-
-    recognition.onerror = () => {
-      setIsRecording(false);
-      setAiResponse('Não consegui te ouvir direito.');
-    };
-
-    if (isRecording) {
-      recognition.stop();
-      setIsRecording(false);
-    } else {
-      recognition.start();
-    }
-  }
-
   if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-yellow-500">Carregando...</div>;
   if (!perfil) return notFound();
 
-  // Obtendo a URL da foto dinamicamente da coluna 'foto.url'
   const fotoUrl = perfil["foto.url"] || perfil.foto_url;
 
   return (
     <main className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-6 selection:bg-yellow-500/30">
       
-      {/* 📻 Música de Fundo */}
       {perfil.musica_fundo && (
         <button 
           onClick={() => setIsPlayingMusic(!isPlayingMusic)} 
@@ -255,7 +186,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         </button>
       )}
 
-      {/* Botão Editar Perfil */}
       <button 
         onClick={() => setIsEditing(!isEditing)} 
         className="absolute top-6 right-6 p-3 bg-[#0a0a0a] border border-yellow-600/20 hover:border-yellow-500 text-yellow-500 rounded-full shadow-lg transition-all z-20"
@@ -267,7 +197,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         
         {!isEditing ? (
           <>
-            {/* Avatar */}
             <div className="relative w-32 h-32 mx-auto mb-4 rounded-full p-[2px] bg-gradient-to-tr from-yellow-600 via-yellow-400 to-yellow-600 shadow-lg shadow-yellow-500/20 group cursor-pointer">
               <label htmlFor="photo-upload" className="cursor-pointer w-full h-full block">
                 <div className="w-full h-full bg-[#050505] rounded-full overflow-hidden flex items-center justify-center relative">
@@ -286,12 +215,10 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
             <h1 className="text-2xl font-bold mb-1 tracking-tight text-white">{perfil.nome}</h1>
             
-            {/* Descrição Exibida na Tela */}
             <p className="text-yellow-600/80 text-sm mb-8 font-medium uppercase tracking-widest min-h-[20px]">
               {perfil.bio || 'Slim Checkpoint'}
             </p>
 
-            {/* Links Principais */}
             <div className="space-y-4">
               {[
                 { label: 'WhatsApp', href: perfil.whatsapp ? `https://wa.me/${perfil.whatsapp.replace(/\D/g, '')}` : null },
@@ -303,7 +230,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 </a>
               ))}
 
-              {/* Links Extras */}
               {perfil.links_extras && perfil.links_extras.map((link: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <a href={link.url} target="_blank" rel="noopener noreferrer" 
@@ -315,7 +241,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
             </div>
           </>
         ) : (
-          /* Painel de Edição */
           <div className="text-left space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <h2 className="text-xl font-bold text-yellow-500 mb-4 text-center">Configurações</h2>
             
@@ -381,22 +306,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         </footer>
       </div>
 
-      {/* Widget IA de Voz */}
-      <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-2 z-30">
-        {aiResponse && (
-          <div className="max-w-[220px] bg-[#0a0a0a] border border-yellow-500/30 text-yellow-500 p-3 rounded-2xl text-xs shadow-lg">
-            {aiResponse}
-          </div>
-        )}
-        <button 
-          onClick={handleVoiceChat}
-          className={`p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center gap-2 font-bold ${
-            isRecording ? 'bg-red-600 animate-pulse text-white' : 'bg-yellow-500 hover:bg-yellow-400 text-black'
-          }`}
-        >
-          {isRecording ? '🎙️ Ouvindo...' : '🎤 Falar com Assistente'}
-        </button>
-      </div>
+      {/* Chamada limpa do componente de voz reutilizável */}
+      <VoiceAssistant profileNome={perfil.nome} profileBio={perfil.bio} />
+
     </main>
   );
 }

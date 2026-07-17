@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { supabase } from '../supabaseClient';
+import { buscarTodosScans } from '../../services/checkpointService';
 
 // Importando dinamicamente o componente para não quebrar no build da Vercel
 const Background3D = dynamic(() => import('../components/Background3D'), { ssr: false });
@@ -13,13 +13,15 @@ export default function Painel() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data, error } = await supabase
-        .from('nfc_scans')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (data) setScans(data);
-      setLoading(false);
+      try {
+        // Usando a nossa camada de serviços em vez de chamar o Supabase bruto aqui
+        const dados = await buscarTodosScans();
+        setScans(dados);
+      } catch (error: any) {
+        console.error('Erro ao buscar os logs do painel:', error.message);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchData();
   }, []);
