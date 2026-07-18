@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface VoiceAssistantProps {
   profileNome: string;
@@ -11,11 +11,35 @@ export default function VoiceAssistant({ profileNome, profileBio }: VoiceAssista
   const [isRecording, setIsRecording] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
 
+  // Truque para iOS/Android: Destrava o motor de voz no primeiro toque da tela
+  useEffect(() => {
+    const destravarAudioCelular = () => {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(utterance);
+      }
+      window.removeEventListener('touchstart', destravarAudioCelular);
+      window.removeEventListener('click', destravarAudioCelular);
+    };
+
+    window.addEventListener('touchstart', destravarAudioCelular);
+    window.addEventListener('click', destravarAudioCelular);
+
+    return () => {
+      window.removeEventListener('touchstart', destravarAudioCelular);
+      window.removeEventListener('click', destravarAudioCelular);
+    };
+  }, []);
+
   function handleVoiceChat() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert('Seu navegador não suporta reconhecimento de voz.');
       return;
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
     }
 
     const recognition = new SpeechRecognition();
@@ -43,11 +67,18 @@ export default function VoiceAssistant({ profileNome, profileBio }: VoiceAssista
       }
 
       setAiResponse(respostaIA);
-      
-      const utterance = new SpeechSynthesisUtterance(respostaIA);
-      utterance.lang = 'pt-BR';
-      window.speechSynthesis.speak(utterance);
       setIsRecording(false);
+      
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(respostaIA);
+        utterance.lang = 'pt-BR';
+        
+        const voices = window.speechSynthesis.getVoices();
+        const ptVoice = voices.find(v => v.lang.includes('pt-BR'));
+        if (ptVoice) utterance.voice = ptVoice;
+
+        window.speechSynthesis.speak(utterance);
+      }
     };
 
     recognition.onerror = () => {
@@ -66,17 +97,17 @@ export default function VoiceAssistant({ profileNome, profileBio }: VoiceAssista
   return (
     <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-2 z-30">
       {aiResponse && (
-        <div className="max-w-[220px] bg-[#0a0a0a] border border-yellow-500/30 text-yellow-500 p-3 rounded-2xl text-xs shadow-lg">
+        <div className="max-w-[220px] bg-[#0a0a0a] border border-yellow-500/30 text-yellow-500 p-3 rounded-2xl text-xs shadow-lg mb-1">
           {aiResponse}
         </div>
       )}
       <button 
         onClick={handleVoiceChat}
-        className={`p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center gap-2 font-bold ${
-          isRecording ? 'bg-red-600 animate-pulse text-white' : 'bg-yellow-500 hover:bg-yellow-400 text-black'
+        className={`w-14 h-14 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center justify-center text-2xl border-none focus:outline-none ${
+          isRecording ? 'bg-red-600 animate-pulse text-white' : 'bg-yellow-500 text-black'
         }`}
       >
-        {isRecording ? '🎙️ Ouvindo...' : '🎤 Falar com Assistente'}
+        {isRecording ? '🎙️' : '🎤'}
       </button>
     </div>
   );
