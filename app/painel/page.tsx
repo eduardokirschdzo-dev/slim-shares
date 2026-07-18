@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { buscarTodosScans } from '../../services/checkpointService';
+import { buscarTodosScans } from '@/services/checkpointService';
 
 // Importando dinamicamente o componente para não quebrar no build da Vercel
-const Background3D = dynamic(() => import('../components/Background3D'), { ssr: false });
+const Background3D = dynamic(() => import('@/components/Background3D'), { ssr: false });
 
 export default function Painel() {
   const [scans, setScans] = useState<any[]>([]);

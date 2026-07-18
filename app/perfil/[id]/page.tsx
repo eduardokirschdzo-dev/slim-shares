@@ -2,10 +2,10 @@
 
 import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useState, use, useRef } from 'react';
-import { supabase } from '../../../lib/supabase';
-import { buscarPerfil } from '../../../services/profileService';
-import { registrarScan } from '../../../services/checkpointService';
-import VoiceAssistant from '../../components/VoiceAssistant'; // Importando o nosso novo componente isolado
+import { supabase } from '@/lib/supabase';
+import { buscarPerfil } from '@/services/profileService';
+import { registrarScan } from '@/services/checkpointService';
+import VoiceAssistant from '@/components/VoiceAssistant';
 
 export default function PerfilPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
