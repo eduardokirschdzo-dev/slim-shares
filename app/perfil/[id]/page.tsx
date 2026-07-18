@@ -27,9 +27,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [editMusicaFundo, setEditMusicaFundo] = useState('');
   const [editLinksExtras, setEditLinksExtras] = useState<any[]>([]);
 
-  // Analytics Simulado (Você pode conectar ao banco depois)
-  const [totalAcessos, setTotalAcessos] = useState(287);
-  const [ultimoAcesso, setUltimoAcesso] = useState('há 4 minutos');
+  // Analytics (Agora conectado ao Banco de Dados)
+  const [totalAcessos, setTotalAcessos] = useState(0);
+  const [ultimoAcesso, setUltimoAcesso] = useState('Calculando...');
 
   useEffect(() => {
     async function loadData() {
@@ -41,7 +41,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         const checkpointStr = paramsUrl.get('cp') || 'Geral'; 
 
         // 1. SMART REDIRECT (Ativação de Produto Virgem)
-        // Se a tag não tem dono ou o ID passado for 'virgem', manda para ativação
         if (id === 'virgem') {
           router.push(`/ativar?tag=${assetCode}`);
           return;
@@ -65,6 +64,30 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
         // 2. REGISTRO DE EVENTO (SaaS)
         await registrarScan(assetCode, checkpointStr);
+
+        // --- BUSCA OS DADOS REAIS DE ANALYTICS ---
+        const { count, data: eventos } = await supabase
+          .from('view_eventos_com_perfil')
+          .select('created_at', { count: 'exact' })
+          .eq('profile_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (count !== null) setTotalAcessos(count);
+        
+        if (eventos && eventos.length > 0) {
+          const dataUltimo = new Date(eventos[0].created_at);
+          const hoje = new Date();
+          const diffMinutos = Math.floor((hoje.getTime() - dataUltimo.getTime()) / 60000);
+          
+          if (diffMinutos < 1) setUltimoAcesso('Agora mesmo');
+          else if (diffMinutos < 60) setUltimoAcesso(`há ${diffMinutos} minutos`);
+          else if (diffMinutos < 1440) setUltimoAcesso(`há ${Math.floor(diffMinutos / 60)} horas`);
+          else setUltimoAcesso(`há ${Math.floor(diffMinutos / 1440)} dias`);
+        } else {
+          setUltimoAcesso('Nenhum acesso');
+        }
+        // -----------------------------------------
 
       } catch (error) {
         console.error("Erro ao carregar perfil:", error);
