@@ -2,10 +2,12 @@
 
 import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useState, use, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { buscarPerfil } from '@/services/profileService';
-import { registrarScan } from '@/services/checkpointService';
-import VoiceAssistant from '@/components/VoiceAssistant';
+
+// 👇 AQUI ESTÁ A CORREÇÃO: Usando caminhos relativos em vez de @/
+import { supabase } from '../../../lib/supabase';
+import { buscarPerfil } from '../../../services/profileService';
+import { registrarScan } from '../../../services/checkpointService';
+import VoiceAssistant from '../../../components/VoiceAssistant';
 
 export default function PerfilPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
