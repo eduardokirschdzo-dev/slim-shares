@@ -1,65 +1,92 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
 
 /**
  * Registra a interação com um ativo (asset).
  */
-export async function registrarScan(internalCode: string, checkpoint: string) {
-  try {
-    const { data: asset, error: assetError } = await supabase
-      .from('assets')
-      .select('id, profile_id')
-      .eq('internal_code', internalCode)
-      .single();
-
-    if (assetError || !asset) {
-      throw new Error('Ativo não encontrado na base de dados.');
-    }
-
-    const { error: eventError } = await supabase
-      .from('asset_events')
-      .insert([{
-        asset_id: asset.id,
-        event_type: 'SCAN',
-        checkpoint_name: checkpoint
-      }]);
-
-    if (eventError) throw eventError;
-
-    return { success: true, profileId: asset.profile_id };
-  } catch (error: any) {
-    console.error('Erro ao registrar scan:', error.message);
-    throw error;
+export async function registrarScan(
+  internalCode: string,
+  checkpoint: string
+) {
+  if (!internalCode) {
+    throw new Error("Código interno não informado.");
   }
+
+  if (!checkpoint) {
+    throw new Error("Checkpoint não informado.");
+  }
+
+  const { data: asset, error: assetError } = await supabase
+    .from("assets")
+    .select("id, profile_id")
+    .eq("internal_code", internalCode)
+    .single();
+
+  if (assetError || !asset) {
+    throw new Error("[CheckpointService] Ativo não encontrado.");
+  }
+
+  const { error: eventError } = await supabase
+    .from("asset_events")
+    .insert([
+      {
+        asset_id: asset.id,
+        event_type: "SCAN",
+        checkpoint_name: checkpoint,
+      },
+    ]);
+
+  if (eventError) {
+    throw new Error(
+      `[CheckpointService] ${eventError.message}`
+    );
+  }
+
+  return {
+    success: true,
+    assetId: asset.id,
+    profileId: asset.profile_id,
+  };
 }
 
 /**
- * Busca todos os acessos históricos (para o perfil)
+ * Busca todos os acessos históricos.
  */
 export async function buscarTodosScans() {
   const { data, error } = await supabase
-    .from('asset_events')
+    .from("asset_events")
     .select(`
-      id, 
-      checkpoint_name, 
-      created_at, 
-      assets (internal_code)
+      id,
+      checkpoint_name,
+      created_at,
+      assets (
+        internal_code
+      )
     `)
-    .order('created_at', { ascending: false });
+    .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data || [];
+  if (error) {
+    throw new Error(
+      `[CheckpointService] ${error.message}`
+    );
+  }
+
+  return data ?? [];
 }
 
 /**
- * NOVA FUNÇÃO PARA O DASHBOARD:
- * Busca o relatório completo usando a View criada no banco.
+ * Busca o relatório completo para o Dashboard.
  */
 export async function buscarRelatorioEventos() {
   const { data, error } = await supabase
-    .from('view_eventos_com_perfil')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .from("view_eventos_com_perfil")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data || [];
+  if (error) {
+    throw new Error(
+      `[CheckpointService] ${error.message}`
+    );
+  }
+
+  return data ?? [];
 }
