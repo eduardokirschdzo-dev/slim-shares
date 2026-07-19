@@ -8,11 +8,12 @@ import { buscarPerfil } from '../../../services/profileService';
 import { registrarScan } from '../../../services/checkpointService';
 import VoiceAssistant from '../../../components/VoiceAssistant';
 import type { Profile } from '../../../types/profile';
+
 export default function PerfilPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   
- const [perfil, setPerfil] = useState<Profile | null>(null);
+  const [perfil, setPerfil] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   
@@ -53,7 +54,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
           return;
         }
 
-        setPerfil(data);
+        setPerfil(data as Profile);
         setEditNome(data.nome);
         setEditBio(data.bio || '');
         setEditWhatsapp(data.whatsapp || '');
@@ -141,7 +142,18 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
     if (error) alert('Erro: ' + error.message);
     else {
-      setPerfil({ ...perfil, nome: editNome, bio: editBio, whatsapp: editWhatsapp, link_instagram: editInstagram, musica_fundo: editMusicaFundo, links_extras: editLinksExtras });
+      // Correção de tipagem aplicada aqui com o 'as Profile' e forçando a passagem do 'id'
+      setPerfil({ 
+        ...perfil, 
+        id: id, 
+        nome: editNome, 
+        bio: editBio, 
+        whatsapp: editWhatsapp, 
+        link_instagram: editInstagram, 
+        musica_fundo: editMusicaFundo, 
+        links_extras: editLinksExtras 
+      } as Profile);
+      
       setIsEditing(false);
     }
     setLoading(false);
@@ -157,15 +169,18 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     if (uploadError) { alert('Erro ao enviar foto'); setLoading(false); return; }
 
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    await supabase.from('nfc_profiles').update({ "foto.url": publicUrl }).eq('id', id);
-    setPerfil({ ...perfil, "foto.url": publicUrl });
+    await supabase.from('nfc_profiles').update({ "foto_url": publicUrl }).eq('id', id);
+    
+    // Garantindo que a tipagem não trave aqui também
+    setPerfil({ ...perfil, foto_url: publicUrl } as Profile);
     setLoading(false);
   }
 
   if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-yellow-500 font-bold">Carregando...</div>;
   if (!perfil) return notFound();
 
-  const fotoUrl = perfil["foto.url"] || perfil.foto_url;
+  // Tratando a busca pela foto dependendo de como está no banco
+  const fotoUrl = (perfil as any)["foto.url"] || perfil.foto_url;
 
   return (
     <main className="min-h-screen bg-[#000000] text-white flex flex-col items-center py-10 px-6 font-sans relative overflow-hidden">
