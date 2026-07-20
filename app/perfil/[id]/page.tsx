@@ -291,7 +291,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         )}
       </div>
 
-      <VoiceAssistant profileNome={perfil.nome} profileBio={perfil.bio} />
+      <VoiceAssistant profileNome={perfil.nome} profileBio={perfil.bio || ''} />
     </main>
   );
 }
