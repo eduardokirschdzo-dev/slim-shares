@@ -3,6 +3,11 @@ export interface LinkExtra {
   url: string;
 }
 
+export interface ProfileAnalytics {
+  totalAcessos: number;
+  ultimoAcesso: string;
+}
+
 export interface Profile {
   id: string;
   nome: string;
@@ -12,9 +17,4 @@ export interface Profile {
   musica_fundo?: string;
   foto_url?: string;
   links_extras?: LinkExtra[];
-}
-
-export interface ProfileAnalytics {
-  totalAcessos: number;
-  ultimoAcesso: string;
 }

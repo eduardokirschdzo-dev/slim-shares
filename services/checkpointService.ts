@@ -10,6 +10,8 @@ export async function registrarScan(internalCode: string, checkpoint: string) {
   }
 
   try {
+    console.log("[CheckpointService] Tentando registrar scan para tag:", internalCode);
+
     const { data: asset, error: assetError } = await supabase
       .from("assets")
       .select("id, profile_id")
@@ -17,7 +19,7 @@ export async function registrarScan(internalCode: string, checkpoint: string) {
       .single();
 
     if (assetError || !asset) {
-      console.error("[CheckpointService] Ativo não encontrado no Supabase.");
+      console.error("[CheckpointService] ERRO: Ativo não encontrado na tabela 'assets' para o código:", internalCode);
       return { success: false };
     }
 
@@ -32,10 +34,11 @@ export async function registrarScan(internalCode: string, checkpoint: string) {
       ]);
 
     if (eventError) {
-      console.error("[CheckpointService] Falha ao registrar evento:", eventError.message);
+      console.error("[CheckpointService] Falha ao registrar evento na tabela 'asset_events':", eventError.message);
       return { success: false };
     }
 
+    console.log("[CheckpointService] Scan registrado com sucesso para o ativo:", asset.id);
     return {
       success: true,
       assetId: asset.id,

@@ -23,21 +23,18 @@ export default async function PerfilPage({
     redirect(`/ativar?tag=${tag}`);
   }
 
-  // 2. ORQUESTRAÇÃO EM PARALELO (Busca dados enquanto registra o scan)
-  const profilePromise = buscarPerfil(id);
-  const analyticsPromise = fetchAnalytics(id);
-
-  // Fire and forget: Dispara o scan sem travar o carregamento da página
-  registrarScan(tag, cp).catch((e) => console.error("Erro no scan (RLS/Tabela):", e));
-
-  const [perfilData, analyticsData] = await Promise.all([
-    profilePromise,
-    analyticsPromise,
-  ]);
+  // 2. BUSCA O PERFIL
+  const perfilData = await buscarPerfil(id);
 
   if (!perfilData || !perfilData.nome) {
     redirect(`/ativar?tag=${tag}`);
   }
+
+  // 3. REGISTRA O SCAN E ESPERA TERMINAR (Isso corrige o bug da contagem!)
+  await registrarScan(tag, cp);
+
+  // 4. AGORA BUSCA O ANALYTICS (Garante que o scan anterior já foi somado)
+  const analyticsData = await fetchAnalytics(id);
 
   // Tratamento da tipagem e do bug da foto legada
   const perfil = {
@@ -45,7 +42,7 @@ export default async function PerfilPage({
     foto_url: (perfilData as any)["foto.url"] || perfilData.foto_url,
   } as Profile;
 
-  // 3. ENTREGA O HTML PRONTO PARA O CLIENTE
+  // 5. ENTREGA O HTML PRONTO PARA O CLIENTE
   return <ProfileClient initialProfile={perfil} analytics={analyticsData} />;
 }
 
