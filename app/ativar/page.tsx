@@ -7,7 +7,9 @@ import { ativarPerfil } from '../../services/profileService';
 function FormularioAtivacao() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const id = searchParams.get('id'); // Pega o ID da URL, ex: /ativar?id=02
+  
+  // CORREÇÃO: Agora ele busca a 'tag' na URL (que é o que o sistema envia)
+  const id = searchParams.get('tag') || searchParams.get('id'); 
 
   const [nome, setNome] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -17,12 +19,12 @@ function FormularioAtivacao() {
 
   async function handleAtivar(e: React.FormEvent) {
     e.preventDefault();
-    if (!id) return alert('ID do cartão não encontrado!');
+    if (!id) return alert('ID do cartão não encontrado na URL!');
     
     setLoading(true);
 
     try {
-      // Usando a camada de serviços criada na Etapa 2
+      // Usando a camada de serviços blindada
       await ativarPerfil(id, {
         nome: nome,
         whatsapp: whatsapp,
