@@ -1,3 +1,33 @@
+import { supabase } from "../lib/supabase";
+import type { Profile, DadosPerfil } from "../types/profile";
+
+/**
+ * Busca o perfil pelo ID (internal_code do cartão).
+ * Retorna null se o cartão ainda não tiver perfil (ou não estiver ativado),
+ * pra página de perfil decidir se redireciona pra /ativar.
+ */
+export async function buscarPerfil(id: string): Promise<Profile | null> {
+  if (!id) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from("nfc_profiles")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !data) {
+      console.error("[ProfileService] Perfil não encontrado para o id:", id, error?.message);
+      return null;
+    }
+
+    return data as Profile;
+  } catch (e) {
+    console.error("[ProfileService] Falha inesperada ao buscar perfil:", e);
+    return null;
+  }
+}
+
 // Atualiza os dados de forma segura e já vincula o ativo físico (Asset) automaticamente
 export async function ativarPerfil(
   id: string,

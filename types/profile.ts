@@ -18,3 +18,10 @@ export interface Profile {
   foto_url?: string;
   links_extras?: LinkExtra[];
 }
+
+// Dados enviados pelo formulário de ativação (app/ativar/page.tsx)
+export interface DadosPerfil {
+  nome: string;
+  whatsapp: string;
+  link_instagram: string;
+}

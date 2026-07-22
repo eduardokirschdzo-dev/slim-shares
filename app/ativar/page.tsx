@@ -3,12 +3,13 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ativarPerfil } from '../../services/profileService';
+import { supabase } from '../../lib/supabase'; // 🔥 ADICIONADO: Importamos o banco de dados
 
 function FormularioAtivacao() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // CORREÇÃO: Agora ele busca a 'tag' na URL (que é o que o sistema envia)
+  // Pega a 'tag' ou 'id' da URL
   const id = searchParams.get('tag') || searchParams.get('id'); 
 
   const [nome, setNome] = useState('');
@@ -24,12 +25,27 @@ function FormularioAtivacao() {
     setLoading(true);
 
     try {
-      // Usando a camada de serviços blindada
+      // 1. Salva os dados do cliente no perfil (Seu código original)
       await ativarPerfil(id, {
         nome: nome,
         whatsapp: whatsapp,
         link_instagram: instagram
       });
+
+      // 2. 🔥 NOVA ETAPA: Amarrar a Tag ao Perfil no banco de dados!
+      const isTag = searchParams.has('tag');
+      
+      // Se a pessoa veio através de uma tag, atualizamos a tabela 'tags'
+      if (isTag) {
+        const { error: tagError } = await supabase
+          .from('tags')
+          .update({ profile_id: id }) // Preenche a coluna que criamos agora a pouco
+          .eq('code', id); // Onde o código da tag for igual ao da URL
+
+        if (tagError) {
+          console.error('Aviso: Não foi possível vincular a tag no banco.', tagError);
+        }
+      }
 
       setSucesso(true);
       // Aguarda 2 segundos e joga o cliente pro perfil novinho em folha
