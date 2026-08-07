@@ -35,7 +35,19 @@ export default async function AtivacaoPage({
 
     const perfilExistente = await buscarPerfil(supabase, id);
 
-    if (perfilExistente?.owner_id) {
+    if (!perfilExistente) {
+      // ID não existe na tabela — link inválido ou cartão ainda não cadastrado.
+      conteudo = (
+        <div className="space-y-3">
+          <p className="text-red-400 text-sm">
+            Código não encontrado. Verifique o link no cartão.
+          </p>
+          <p className="text-gray-600 text-xs">
+            Se você acredita que é um erro, entre em contato com o suporte Slim.
+          </p>
+        </div>
+      );
+    } else if (perfilExistente.owner_id) {
       // Cartão já ativado. Se for o dono, não faz sentido mostrar formulário.
       if (user && perfilExistente.owner_id === user.id) {
         redirect(`/perfil/${id}`);

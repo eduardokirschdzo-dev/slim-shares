@@ -187,7 +187,14 @@ $$;
 grant execute on function public.get_profile_analytics(text) to anon, authenticated;
 
 
--- 9. STORAGE: bucket "avatars" -------------------------------------------------
+-- 9. CAMPO agenda_url EM NFC_PROFILES ------------------------------------------
+-- URL do link de agendamento exibida como botão "Agendar Contato" no perfil.
+-- Aceita qualquer URL: Cal.com, Calendly, WhatsApp, formulário próprio etc.
+alter table public.nfc_profiles
+  add column if not exists agenda_url text;
+
+
+-- 10. STORAGE: bucket "avatars" -------------------------------------------------
 -- Leitura pública (a foto aparece na página do perfil para qualquer visitante),
 -- mas só o dono do perfil pode enviar/atualizar o arquivo correspondente.
 drop policy if exists "leitura publica dos avatares" on storage.objects;

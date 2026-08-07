@@ -30,6 +30,7 @@ export default function ProfileClient({ initialProfile, analytics, isOwner }: Pr
   const [editInstagram, setEditInstagram] = useState(initialProfile.link_instagram || '');
   const [editMusicaFundo, setEditMusicaFundo] = useState(initialProfile.musica_fundo || '');
   const [editLinksExtras, setEditLinksExtras] = useState<LinkExtra[]>(initialProfile.links_extras || []);
+  const [editAgendaUrl, setEditAgendaUrl] = useState(initialProfile.agenda_url || '');
 
   // Controle de Música
   useEffect(() => {
@@ -58,26 +59,28 @@ export default function ProfileClient({ initialProfile, analytics, isOwner }: Pr
     const { error } = await supabase
       .from('nfc_profiles')
       .update({
-        nome: editNome, 
-        bio: editBio, 
+        nome: editNome,
+        bio: editBio,
         whatsapp: editWhatsapp,
-        link_instagram: editInstagram, 
+        link_instagram: editInstagram,
         musica_fundo: editMusicaFundo,
-        links_extras: editLinksExtras
+        links_extras: editLinksExtras,
+        agenda_url: editAgendaUrl,
       })
       .eq('id', perfil.id);
 
     if (error) {
       alert('Erro: ' + error.message);
     } else {
-      setPerfil({ 
-        ...perfil, 
-        nome: editNome, 
-        bio: editBio, 
-        whatsapp: editWhatsapp, 
-        link_instagram: editInstagram, 
-        musica_fundo: editMusicaFundo, 
-        links_extras: editLinksExtras 
+      setPerfil({
+        ...perfil,
+        nome: editNome,
+        bio: editBio,
+        whatsapp: editWhatsapp,
+        link_instagram: editInstagram,
+        musica_fundo: editMusicaFundo,
+        links_extras: editLinksExtras,
+        agenda_url: editAgendaUrl,
       });
       setIsEditing(false);
     }
@@ -166,10 +169,16 @@ export default function ProfileClient({ initialProfile, analytics, isOwner }: Pr
               )}
             </div>
 
-            <h1 className="text-3xl font-bold text-white mb-2">{perfil.nome}</h1>
-            <p className="text-yellow-600 text-sm font-semibold mb-4 text-center px-4 tracking-wide">
-              {perfil.bio || 'Criador • Slim Checkpoint'}
+            <h1 className="text-3xl font-bold text-white mb-1">{perfil.nome}</h1>
+            <p className="text-yellow-500/90 text-sm italic mb-3 text-center px-6 tracking-wide font-light">
+              {perfil.bio || 'Slim Checkpoint'}
             </p>
+            {/* Divisor dourado ◆ — item 4 */}
+            <div className="flex items-center gap-3 mb-5 w-full max-w-[200px]">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-yellow-600/40"></div>
+              <span className="text-yellow-600/70 text-[10px] leading-none">◆</span>
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-yellow-600/40"></div>
+            </div>
 
             <div className="w-full grid grid-cols-2 gap-3 mt-4">
               {[
@@ -189,6 +198,24 @@ export default function ProfileClient({ initialProfile, analytics, isOwner }: Pr
                 </a>
               ))}
             </div>
+
+            {/* Botão Agendar Contato — item 5 */}
+            {perfil.agenda_url && (
+              <a
+                href={perfil.agenda_url}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full mt-4 flex items-center justify-center gap-2 py-4 bg-yellow-600 hover:bg-yellow-500 active:scale-95 text-black font-bold rounded-2xl transition-all shadow-[0_0_24px_rgba(202,138,4,0.35)]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Agendar Contato
+              </a>
+            )}
 
             <div className="w-full mt-8 bg-[#0a0a0a] border border-yellow-600/30 rounded-3xl p-5 shadow-[0_0_20px_rgba(202,138,4,0.05)] relative overflow-hidden">
               <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-yellow-600/20 to-transparent pointer-events-none"></div>
@@ -220,19 +247,157 @@ export default function ProfileClient({ initialProfile, analytics, isOwner }: Pr
           </>
         ) : (
           <div className="w-full bg-[#0a0a0a] p-6 rounded-3xl border border-[#222] text-left space-y-4 shadow-xl z-20 relative">
-            <h2 className="text-xl font-bold text-white text-center mb-6">Editar Perfil</h2>
-            
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Nome</label>
-              <input type="text" value={editNome} onChange={(e) => setEditNome(e.target.value)} className="w-full mt-1 bg-[#111] border border-[#333] rounded-xl p-3 text-white focus:border-yellow-500 outline-none transition-colors" />
+            <h2 className="text-xl font-bold text-white text-center mb-2">Editar Perfil</h2>
+            <p className="text-xs text-gray-600 text-center mb-6 uppercase tracking-widest">Todas as alterações são salvas em tempo real</p>
+
+            {/* ── Identidade ── */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome</label>
+              <input
+                type="text"
+                value={editNome}
+                onChange={(e) => setEditNome(e.target.value)}
+                className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white focus:border-yellow-500 outline-none transition-colors"
+              />
             </div>
-            
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Bio / Subtítulo</label>
-              <input type="text" value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full mt-1 bg-[#111] border border-[#333] rounded-xl p-3 text-white focus:border-yellow-500 outline-none transition-colors" />
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Bio / Subtítulo</label>
+              <input
+                type="text"
+                value={editBio}
+                onChange={(e) => setEditBio(e.target.value)}
+                placeholder="Ex: Produtor musical • São Paulo"
+                className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white placeholder-gray-700 focus:border-yellow-500 outline-none transition-colors"
+              />
             </div>
-            
-            <button onClick={handleSaveChanges} disabled={isLoading} className="w-full mt-6 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-xl transition-colors shadow-[0_0_15px_rgba(202,138,4,0.3)] disabled:opacity-50">
+
+            {/* ── Redes Sociais — item 2 ── */}
+            <div className="pt-2 border-t border-[#1a1a1a]">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Redes Sociais</p>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-600 uppercase tracking-wider">WhatsApp</label>
+                  <input
+                    type="tel"
+                    value={editWhatsapp}
+                    onChange={(e) => setEditWhatsapp(e.target.value)}
+                    placeholder="5551999999999 (com código do país)"
+                    className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white placeholder-gray-700 focus:border-yellow-500 outline-none transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-600 uppercase tracking-wider">Instagram</label>
+                  <div className="flex items-center bg-[#111] border border-[#333] rounded-xl overflow-hidden focus-within:border-yellow-500 transition-colors">
+                    <span className="pl-3 text-gray-600 text-sm select-none">@</span>
+                    <input
+                      type="text"
+                      value={editInstagram.replace('@', '')}
+                      onChange={(e) => setEditInstagram(e.target.value.replace('@', ''))}
+                      placeholder="seuarrobá"
+                      className="flex-1 bg-transparent p-3 text-white placeholder-gray-700 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Música de Fundo — item 2 ── */}
+            <div className="pt-2 border-t border-[#1a1a1a]">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Música de Fundo</p>
+              <div className="space-y-1">
+                <input
+                  type="url"
+                  value={editMusicaFundo}
+                  onChange={(e) => setEditMusicaFundo(e.target.value)}
+                  placeholder="URL direta do áudio (.mp3, .ogg…)"
+                  className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white placeholder-gray-700 focus:border-yellow-500 outline-none transition-colors"
+                />
+                <p className="text-[11px] text-gray-700">Use um link direto para arquivo de áudio. Links do Spotify não funcionam aqui.</p>
+              </div>
+            </div>
+
+            {/* ── Agendar Contato — item 5 ── */}
+            <div className="pt-2 border-t border-[#1a1a1a]">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Link de Agendamento</p>
+              <div className="space-y-1">
+                <input
+                  type="url"
+                  value={editAgendaUrl}
+                  onChange={(e) => setEditAgendaUrl(e.target.value)}
+                  placeholder="https://cal.com/seu-link ou calendly.com/…"
+                  className="w-full bg-[#111] border border-[#333] rounded-xl p-3 text-white placeholder-gray-700 focus:border-yellow-500 outline-none transition-colors"
+                />
+                <p className="text-[11px] text-gray-700">Aparece como botão dourado "Agendar Contato" no seu perfil.</p>
+              </div>
+            </div>
+
+            {/* ── Links Extras — item 3 ── */}
+            <div className="pt-2 border-t border-[#1a1a1a]">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Links Extras</p>
+                <button
+                  type="button"
+                  onClick={() => setEditLinksExtras([...editLinksExtras, { title: '', url: '' }])}
+                  className="flex items-center gap-1 text-yellow-600 hover:text-yellow-400 text-xs font-semibold transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Adicionar
+                </button>
+              </div>
+
+              {editLinksExtras.length === 0 && (
+                <p className="text-xs text-gray-700 italic">Nenhum link extra. Clique em "Adicionar" para incluir portfólio, Spotify, YouTube etc.</p>
+              )}
+
+              <div className="space-y-3">
+                {editLinksExtras.map((link, index) => (
+                  <div key={index} className="flex gap-2 items-start">
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="text"
+                        value={link.title}
+                        onChange={(e) => {
+                          const updated = [...editLinksExtras];
+                          updated[index] = { ...updated[index], title: e.target.value };
+                          setEditLinksExtras(updated);
+                        }}
+                        placeholder="Nome (ex: Meu Portfólio)"
+                        className="w-full bg-[#111] border border-[#333] rounded-lg p-2.5 text-white text-sm placeholder-gray-700 focus:border-yellow-500 outline-none transition-colors"
+                      />
+                      <input
+                        type="url"
+                        value={link.url}
+                        onChange={(e) => {
+                          const updated = [...editLinksExtras];
+                          updated[index] = { ...updated[index], url: e.target.value };
+                          setEditLinksExtras(updated);
+                        }}
+                        placeholder="https://..."
+                        className="w-full bg-[#111] border border-[#333] rounded-lg p-2.5 text-white text-sm placeholder-gray-700 focus:border-yellow-500 outline-none transition-colors"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditLinksExtras(editLinksExtras.filter((_, i) => i !== index))}
+                      className="mt-1 p-2 text-gray-600 hover:text-red-400 transition-colors flex-shrink-0"
+                      title="Remover link"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Salvar ── */}
+            <button
+              onClick={handleSaveChanges}
+              disabled={isLoading}
+              className="w-full mt-4 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-xl transition-colors shadow-[0_0_15px_rgba(202,138,4,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {isLoading ? 'Salvando...' : 'Salvar Alterações'}
             </button>
           </div>
