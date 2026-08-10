@@ -76,10 +76,6 @@ export async function ativarPerfil(
     }
 
     // 3. Vincula a tag física à qual esta ativação corresponde, se houver uma
-    // (um link direto não tem tag física — o UPDATE simplesmente afeta 0
-    // linhas nesse caso, sem erro). Fica aqui, e não em cada formulário, para
-    // ambos os fluxos de ativação (com ou sem sessão já existente) chamarem
-    // apenas esta função e nunca ficarem fora de sincronia entre si.
     const { error: tagError } = await supabase
       .from("tags")
       .update({ profile_id: id })
